@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
+	"github.com/prysmaticlabs/prysm/v4/consensus-types/primitives"
 )
 
 // BlobTx represents an EIP-4844 transaction.
@@ -52,8 +53,18 @@ type BlobTx struct {
 	S *uint256.Int `json:"s" gencodec:"required"`
 }
 
+type Root [32]byte
+type Slot uint64
+
 // BlobTxSidecar contains the blobs of a blob transaction.
 type BlobTxSidecar struct {
+	Index                    uint64
+	CommitmentInclusionProof [][]byte
+	BlockRoot                Root
+	BlockSlot                primitives.Slot
+	BlockParentRoot          Root
+	ProposerIndex            uint64
+
 	Blobs       []kzg4844.Blob       // Blobs needed by the blob pool
 	Commitments []kzg4844.Commitment // Commitments needed by the blob pool
 	Proofs      []kzg4844.Proof      // Proofs needed by the blob pool
