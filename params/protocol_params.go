@@ -178,6 +178,12 @@ const (
 	BlobTxMinBlobGasprice              = 1       // Minimum gas price for data blobs
 	BlobTxBlobGaspriceUpdateFraction   = 3338477 // Controls the maximum rate of change for blob gas price
 	BlobTxPointEvaluationPrecompileGas = 50000   // Gas price for the point evaluation precompile.
+	MaxBlobsPerBlock                   = 6       // MaxBlobsPerBlock defines the maximum number of blobs with respect to consensus rule can be included in a block.
+	MaxBlobCommitmentsPerBlock         = 4096    // MaxBlobCommitmentsPerBlock defines the theoretical limit of blobs can be included in a block.
+	LogMaxBlobCommitments              = 12      // Log_2 of MaxBlobCommitmentsPerBlock
+	BlobLength                         = 131072  // BlobLength defines the byte length of a blob.
+	BlobSize                           = 131072  // defined to match blob.size in bazel ssz codegen
+	KzgCommitmentInclusionProofDepth   = 17      // Merkle proof depth for blob_kzg_commitments list item
 
 	BlobTxTargetBlobGasPerBlock = 3 * BlobTxBlobGasPerBlob // Target consumable blob gas for data blobs per block (for 1559-like pricing)
 	MaxBlobGasPerBlock          = 6 * BlobTxBlobGasPerBlob // Maximum consumable blob gas for data blobs per block

@@ -20,10 +20,12 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"math/big"
 	"runtime"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/core/rawdb/bloblevel"
+	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -185,6 +187,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.OverrideCancun != nil {
 		chainConfig.CancunTime = config.OverrideCancun
 		overrides.OverrideCancun = config.OverrideCancun
+		chainConfig.DataBlobs = &params.DataBlobsConfig{
+			SlotsPerEpoch:                    200,
+			MinEpochsForBlobsSidecarsRequest: 10,
+		}
 	}
 	if config.OverrideVerkle != nil {
 		chainConfig.VerkleTime = config.OverrideVerkle
@@ -312,7 +318,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		return nil, err
 	}
 
-	eth.miner = miner.New(eth, &config.Miner, eth.blockchain.Config(), eth.EventMux(), eth.engine, eth.isLocalBlock)
+	blobDatabase := bloblevel.NewStorage(rawdb.NewMemoryDatabase())
+	eth.miner = miner.New(eth, &config.Miner, eth.blockchain.Config(), eth.EventMux(), eth.engine, eth.isLocalBlock, blobDatabase)
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
 
 	// Create voteManager instance

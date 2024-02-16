@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/prysmaticlabs/prysm/v4/consensus-types/primitives"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params/forks"
 )
@@ -517,6 +519,14 @@ type ChainConfig struct {
 	Ethash *EthashConfig `json:"ethash,omitempty"`
 	Clique *CliqueConfig `json:"clique,omitempty"`
 	Parlia *ParliaConfig `json:"parlia,omitempty"`
+
+	//DataBlobs 4844 config
+	DataBlobs *DataBlobsConfig `json:"data_blobs,omitempty" toml:",omitempty"`
+}
+
+type DataBlobsConfig struct {
+	SlotsPerEpoch                    primitives.Slot  `json:"slots_per_epoch"`
+	MinEpochsForBlobsSidecarsRequest primitives.Epoch `json:"min_epochs_for_blobs_sidecars_request"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.

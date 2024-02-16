@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -85,7 +86,7 @@ type Miner struct {
 	wg sync.WaitGroup
 }
 
-func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(header *types.Header) bool) *Miner {
+func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(header *types.Header) bool, blobDatabase rawdb.BlobCrud) *Miner {
 	miner := &Miner{
 		mux:     mux,
 		eth:     eth,
@@ -93,7 +94,7 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 		exitCh:  make(chan struct{}),
 		startCh: make(chan struct{}),
 		stopCh:  make(chan struct{}),
-		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, false),
+		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, false, blobDatabase),
 	}
 	miner.wg.Add(1)
 	go miner.update()

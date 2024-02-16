@@ -17,6 +17,7 @@
 package miner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -30,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/consensus/parlia"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/systemcontracts"
 	"github.com/ethereum/go-ethereum/core/txpool"
@@ -229,10 +231,16 @@ type worker struct {
 	fullTaskHook      func()                             // Method to call before pushing the full sealing task.
 	resubmitHook      func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
 	recentMinedBlocks *lru.Cache
+
+	blobDatabase rawdb.BlobCrud
 }
 
-func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(header *types.Header) bool, init bool) *worker {
+func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(header *types.Header) bool, init bool, blobDatabase rawdb.BlobCrud) *worker {
 	recentMinedBlocks, _ := lru.New(recentMinedCacheLimit)
+	chainConfig.DataBlobs = &params.DataBlobsConfig{ // todo 4844 satyajit do it at proper place without hardcoding
+		SlotsPerEpoch:                    200,
+		MinEpochsForBlobsSidecarsRequest: 20,
+	}
 	worker := &worker{
 		prefetcher:         core.NewStatePrefetcher(chainConfig, eth.BlockChain(), engine),
 		config:             config,
@@ -254,6 +262,7 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		exitCh:             make(chan struct{}),
 		resubmitIntervalCh: make(chan time.Duration),
 		recentMinedBlocks:  recentMinedBlocks,
+		blobDatabase:       blobDatabase,
 	}
 	// Subscribe events for blockchain
 	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
@@ -1261,6 +1270,32 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 		block, receipts, err := w.engine.FinalizeAndAssemble(w.chain, types.CopyHeader(env.header), env.state, env.txs, nil, env.receipts, nil)
 		if err != nil {
 			return err
+		}
+		// todo 4844 satyajit ensure you populate sidecars with information such as slot, blockroot, parentroot etc.
+		// todo 4844 use appropriate values
+		for i, sidecar := range env.sidecars {
+			sidecar.Index = uint64(i)
+			sidecar.BlockParentRoot = types.Root(block.ParentHash())
+			sidecar.BlockRoot = types.Root(block.Root())
+			sidecar.BlockSlot = 1     // todo 4844 use appropriate values
+			sidecar.ProposerIndex = 1 // todo 4844 use appropriate values
+		}
+		// todo 4844 satyajit Saving blob sidecars here for now. This is probably not final architecture
+		if len(env.sidecars) > 0 {
+			err = w.blobDatabase.SaveBlobSidecar(context.Background(), w.chainConfig, env.sidecars)
+			if err != nil {
+				return err
+			} else {
+				fmt.Println("Saved sidecar without error. Checking if fetching works...")
+				// todo 4844 satyajit check this to ensure saving
+				scs, err := w.blobDatabase.GetBlobSidecarsByRoot(context.Background(), block.Root())
+				if err != nil {
+					fmt.Println("Error in getting saved sidecar: ", err)
+				}
+				if len(scs) > 0 {
+					fmt.Println("Retriedved saved sidecar: ", scs[0])
+				}
+			}
 		}
 		// env.receipts = receipts
 		finalizeBlockTimer.UpdateSince(finalizeStart)
